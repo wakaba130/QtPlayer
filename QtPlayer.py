@@ -12,6 +12,29 @@ from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
 
 from PyQt5.QtWidgets import QPushButton
 
+import movie
+import cv2
+import time
+
+def create_OpenCV(image):
+    if image is None:
+        print('Erorr: image data is empty.')
+        return None
+
+    height = image.height()
+    width = image.width()
+    qimage = QImage(image, width, height, dim, QImage.Format_RGB888)
+    qimage = qimage.rgbSwapped()
+
+def create_QPixmap(image):
+    if image is None:
+        print('Erorr: image data is empty.')
+        return None
+
+    height, width, dim = image.shape
+    qimage = QImage(image.data, width, height, width * dim, QImage.Format_RGB888)
+    return qimage
+
 class ImageViewer(QMainWindow):
     def __init__(self):
         super(ImageViewer, self).__init__()
@@ -33,7 +56,11 @@ class ImageViewer(QMainWindow):
         self.createActions()
         self.createMenus()
 
+        # ボタンの初期化
         self.initButton()
+
+        # 動画読み込みの初期化
+        self.mve = movie.opencv_movie()
 
         self.setWindowTitle("Image Viewer")
         self.resize(720, 560)
@@ -42,21 +69,34 @@ class ImageViewer(QMainWindow):
         fileName, _ = QFileDialog.getOpenFileName(self, "Open File",
                 QDir.currentPath())
         if fileName:
-            image = QImage(fileName)
-            if image.isNull():
-                QMessageBox.information(self, "Image Viewer",
-                        "Cannot load %s." % fileName)
-                return
+            # 動画読み込み
+            self.mve.open(str(fileName))
+            img = self.mve.load()
+            self.__Viewer__(img)
 
-            self.imageLabel.setPixmap(QPixmap.fromImage(image))
-            self.scaleFactor = 1.0
+    def __Viewer__(self,img):
+        if img is None:
+            QMessageBox.information(self, "Image Viewer",
+                                    "Cannot load %s." % fileName)
+            return
 
-            self.printAct.setEnabled(True)
-            self.fitToWindowAct.setEnabled(True)
-            self.updateActions()
+        image = create_QPixmap(img)
 
-            if not self.fitToWindowAct.isChecked():
-                self.imageLabel.adjustSize()
+        # image = QImage(fileName)
+        # print('height : {}'.format(image.height()))
+        # print('whidth : {}'.format(image.width()))
+        # print('depth: {}'.format(image.depth()))
+        # print('format : {}'.format(image.format()))
+
+        self.imageLabel.setPixmap(QPixmap.fromImage(image))
+        self.scaleFactor = 1.0
+
+        self.printAct.setEnabled(True)
+        self.fitToWindowAct.setEnabled(True)
+        self.updateActions()
+
+        if not self.fitToWindowAct.isChecked():
+            self.imageLabel.adjustSize()
 
     def print_(self):
         dialog = QPrintDialog(self.printer, self)
@@ -176,23 +216,23 @@ class ImageViewer(QMainWindow):
         btn1 = QPushButton("start", self)
         btn1.move(30, 10)
 
-        btn2 = QPushButton("stop", self)
-        btn2.move(150, 10)
+        #btn2 = QPushButton("stop", self)
+        #btn2.move(150, 10)
 
         # クリックされたらbuttonClickedの呼び出し
         btn1.clicked.connect(self.buttonClicked)
-        btn2.clicked.connect(self.buttonClicked)
+        #btn2.clicked.connect(self.buttonClicked)
 
         self.statusBar()
-
-        #self.setGeometry(300, 300, 290, 150)
-        #self.setWindowTitle('Event sender')
-        #self.show()
 
     def buttonClicked(self):
         # ステータスバーへメッセージの表示
         sender = self.sender()
         self.statusBar().showMessage(sender.text() + ' was pressed')
+
+        if sender.text() == 'start':
+            img = self.mve.load()
+            self.__Viewer__(img)
 
 if __name__ == '__main__':
     import sys
